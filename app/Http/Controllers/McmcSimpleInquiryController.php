@@ -292,13 +292,14 @@ class McmcSimpleInquiryController extends Controller
     public function bulkAssign(Request $request)
     {
         $request->validate([
-            'inquiry_ids' => 'required|array|min:1',
-            'inquiry_ids.*' => 'exists:inquiries,inquiry_ID',
-            'agency_id' => 'required|exists:agencies,agency_ID',
-            'comments' => 'nullable|string|max:1000'
-        ]);
+        'inquiry_ids' => 'required|string', 
+        'agency_id' => 'required|exists:agencies,agency_ID',
+        'comments' => 'nullable|string|max:1000'
+    ]);
 
-        $inquiries = InquirySubmissionRecord::whereIn('inquiry_ID', $request->inquiry_ids)->get();
+    
+        $idArray = explode(',', $request->inquiry_ids);
+        $inquiries = InquirySubmissionRecord::whereIn('inquiry_ID', $idArray)->get();
         $agency = Agency::findOrFail($request->agency_id);
 
         $successCount = 0;
