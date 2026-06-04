@@ -24,8 +24,51 @@
     </div>
 @endsection
 
+@section('nav-links')
+    @if($user->user_type == 'public')
+        <a href="{{ route('public.dashboard') }}" class="nav-link">
+            <i class="fas fa-tachometer-alt mr-2" aria-hidden="true"></i>
+            Dashboard
+        </a>
+        <a href="{{ route('public.profile') }}" class="nav-link active">
+            <i class="fas fa-user mr-2" aria-hidden="true"></i>
+            Profile
+        </a>
+    @elseif($user->user_type == 'mcmc')
+        <a href="{{ route('mcmc.dashboard') }}" class="nav-link">
+            <i class="fas fa-tachometer-alt mr-2" aria-hidden="true"></i>
+            Dashboard
+        </a>
+        <a href="{{ route('mcmc.users') }}" class="nav-link">
+            <i class="fas fa-users mr-2" aria-hidden="true"></i>
+            Manage Users
+        </a>
+        <a href="{{ route('mcmc.register.agency') }}" class="nav-link">
+            <i class="fas fa-building mr-2" aria-hidden="true"></i>
+            Register Agency
+        </a>
+        <a href="{{ route('mcmc.reports.index') }}" class="nav-link">
+            <i class="fas fa-chart-bar mr-2" aria-hidden="true"></i>
+            Reports
+        </a>
+        <a href="{{ route('mcmc.profile') }}" class="nav-link active">
+            <i class="fas fa-user mr-2" aria-hidden="true"></i>
+            Profile
+        </a>
+    @elseif($user->user_type == 'agency')
+        <a href="{{ route('agency.dashboard') }}" class="nav-link">
+            <i class="fas fa-tachometer-alt mr-2" aria-hidden="true"></i>
+            Dashboard
+        </a>
+        <a href="{{ route('agency.profile') }}" class="nav-link active">
+            <i class="fas fa-user mr-2" aria-hidden="true"></i>
+            Profile
+        </a>
+    @endif
+@endsection
+
 @section('user-menu-items')
-    @if(Auth::user()->user_type == 'public')
+    @if($user->user_type == 'public')
         <a href="{{ route('public.profile') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-200" role="menuitem">
             <i class="fas fa-user mr-3" aria-hidden="true"></i>
             Profile
@@ -34,7 +77,7 @@
             <i class="fas fa-cog mr-3" aria-hidden="true"></i>
             Settings
         </a>
-    @elseif(Auth::user()->user_type == 'mcmc')
+    @elseif($user->user_type == 'mcmc')
         <a href="{{ route('mcmc.profile') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-200" role="menuitem">
             <i class="fas fa-user mr-3" aria-hidden="true"></i>
             Profile
@@ -43,7 +86,7 @@
             <i class="fas fa-cog mr-3" aria-hidden="true"></i>
             Settings
         </a>
-    @elseif(Auth::user()->user_type == 'agency')
+    @elseif($user->user_type == 'agency')
         <a href="{{ route('agency.profile') }}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-200" role="menuitem">
             <i class="fas fa-user mr-3" aria-hidden="true"></i>
             Profile
@@ -61,14 +104,14 @@
         <div class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 mb-8 border border-blue-100">
             <div class="flex items-center space-x-6">
                 <div class="relative">
-                    @if(Auth::user()->profile_picture)
+                    @if($user->profile_picture)
                         <img class="h-24 w-24 rounded-full object-cover border-4 border-white shadow-lg"
-                             src="{{ Storage::url(Auth::user()->profile_picture) }}"
-                             alt="{{ Auth::user()->name }}'s profile picture">
+                             src="{{ $user->profile_picture }}"
+                             alt="{{ $user->name }}'s profile picture">
                     @else
                         <div class="h-24 w-24 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center border-4 border-white shadow-lg">
                             <span class="text-white text-2xl font-bold">
-                                {{ substr(Auth::user()->name, 0, 1) }}
+                                {{ substr($user->name, 0, 1) }}
                             </span>
                         </div>
                     @endif
@@ -78,14 +121,14 @@
                 </div>
 
                 <div class="flex-1">
-                    <h2 class="text-2xl font-bold text-gray-900">{{ Auth::user()->name }}</h2>
-                    <p class="text-gray-600">{{ Auth::user()->email }}</p>
+                    <h2 class="text-2xl font-bold text-gray-900">{{ $user->name }}</h2>
+                    <p class="text-gray-600">{{ $user->email }}</p>
                     <div class="flex items-center mt-2">
                         <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 capitalize">
                             <i class="fas fa-user-tag mr-1" aria-hidden="true"></i>
-                            {{ Auth::user()->user_type }} User
+                            {{ $user->user_type }} User
                         </span>
-                        @if(Auth::user()->email_verified_at)
+                        @if($user->email_verified_at)
                             <span class="ml-2 inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                 <i class="fas fa-check-circle mr-1" aria-hidden="true"></i>
                                 Verified
@@ -110,7 +153,7 @@
                     </div>
 
                     <div class="card-body">
-                        <form method="POST" action="{{ route(Auth::user()->user_type . '.profile.update') }}" enctype="multipart/form-data" class="space-y-6">
+                        <form method="POST" action="{{ route($user->user_type . '.profile.update') }}" enctype="multipart/form-data" class="space-y-6">
                             @csrf
                             @method('PUT')
 
@@ -121,14 +164,14 @@
                                     Profile Picture
                                 </label>
                                 <div class="mt-1 flex items-center space-x-4">
-                                    @if(Auth::user()->profile_picture)
+                                    @if($user->profile_picture)
                                         <img class="h-16 w-16 rounded-full object-cover"
-                                             src="{{ Storage::url(Auth::user()->profile_picture) }}"
+                                             src="{{ $user->profile_picture }}"
                                              alt="Current profile picture">
                                     @else
                                         <div class="h-16 w-16 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
                                             <span class="text-white text-xl font-bold">
-                                                {{ substr(Auth::user()->name, 0, 1) }}
+                                                {{ substr($user->name, 0, 1) }}
                                             </span>
                                         </div>
                                     @endif
@@ -163,7 +206,7 @@
                                     <input type="text"
                                            id="name"
                                            name="name"
-                                           value="{{ old('name', Auth::user()->name) }}"
+                                           value="{{ old('name', $user->name) }}"
                                            class="form-input @error('name') error @enderror"
                                            required
                                            autocomplete="name"
@@ -184,7 +227,7 @@
                                     <input type="email"
                                            id="email"
                                            name="email"
-                                           value="{{ old('email', Auth::user()->email) }}"
+                                           value="{{ old('email', $user->email) }}"
                                            class="form-input @error('email') error @enderror"
                                            required
                                            autocomplete="email"
@@ -207,7 +250,7 @@
                                 <input type="tel"
                                        id="contact_number"
                                        name="contact_number"
-                                       value="{{ old('contact_number', Auth::user()->contact_number) }}"
+                                       value="{{ old('contact_number', $user->contact_number) }}"
                                        class="form-input @error('contact_number') error @enderror"
                                        required
                                        autocomplete="tel"
@@ -321,17 +364,17 @@
                     <div class="card-body space-y-4">
                         <div class="flex items-center justify-between py-2 border-b border-gray-100">
                             <span class="text-sm font-medium text-gray-600">Account Type</span>
-                            <span class="text-sm text-gray-900 capitalize">{{ Auth::user()->user_type }}</span>
+                            <span class="text-sm text-gray-900 capitalize">{{ $user->user_type }}</span>
                         </div>
 
                         <div class="flex items-center justify-between py-2 border-b border-gray-100">
                             <span class="text-sm font-medium text-gray-600">Member Since</span>
-                            <span class="text-sm text-gray-900">{{ Auth::user()->created_at->format('M Y') }}</span>
+                            <span class="text-sm text-gray-900">{{ $user->created_at->format('M Y') }}</span>
                         </div>
 
                         <div class="flex items-center justify-between py-2 border-b border-gray-100">
                             <span class="text-sm font-medium text-gray-600">Email Status</span>
-                            @if(Auth::user()->email_verified_at)
+                            @if($user->email_verified_at)
                                 <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                     <i class="fas fa-check-circle mr-1" aria-hidden="true"></i>
                                     Verified
@@ -346,7 +389,7 @@
 
                         <div class="flex items-center justify-between py-2">
                             <span class="text-sm font-medium text-gray-600">Last Updated</span>
-                            <span class="text-sm text-gray-900">{{ Auth::user()->updated_at->format('M j, Y') }}</span>
+                            <span class="text-sm text-gray-900">{{ $user->updated_at->format('M j, Y') }}</span>
                         </div>
                     </div>
                 </div>
@@ -361,19 +404,22 @@
                     </div>
 
                     <div class="card-body space-y-3">
-                        @if(!Auth::user()->email_verified_at)
-                            <button type="button" class="btn btn-warning w-full text-sm">
-                                <i class="fas fa-envelope mr-2" aria-hidden="true"></i>
-                                Resend Verification Email
-                            </button>
+                        @if(!$user->email_verified_at)
+                            <form method="POST" action="{{ route('verification.send') }}">
+                                @csrf
+                                <button type="submit" class="btn btn-warning w-full text-sm">
+                                    <i class="fas fa-envelope mr-2" aria-hidden="true"></i>
+                                    Resend Verification Email
+                                </button>
+                            </form>
                         @endif
 
-                        <a href="{{ route(Auth::user()->user_type . '.settings') }}" class="btn btn-secondary w-full text-sm">
+                        <a href="{{ route($user->user_type . '.settings') }}" class="btn btn-secondary w-full text-sm">
                             <i class="fas fa-cog mr-2" aria-hidden="true"></i>
                             Account Settings
                         </a>
 
-                        <a href="{{ route(Auth::user()->user_type . '.dashboard') }}" class="btn btn-info w-full text-sm">
+                        <a href="{{ route($user->user_type . '.dashboard') }}" class="btn btn-info w-full text-sm">
                             <i class="fas fa-tachometer-alt mr-2" aria-hidden="true"></i>
                             Back to Dashboard
                         </a>

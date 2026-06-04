@@ -59,26 +59,29 @@
                     </div>
 
                     <!-- User Dropdown -->
+                    @php
+                        $authUser = $user ?? Auth::guard('public')->user() ?? Auth::guard('mcmc')->user() ?? Auth::guard('agency')->user();
+                    @endphp
                     <div class="relative">
                         <button type="button"
                                 class="flex items-center text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
                                 aria-label="User menu"
                                 onclick="toggleUserMenu()">
                             <div class="flex items-center space-x-3 px-3 py-2 hover:bg-gray-50 rounded-lg">
-                                @if(Auth::user()->profile_picture)
+                                @if($authUser?->profile_picture)
                                     <img class="h-8 w-8 rounded-full object-cover"
-                                         src="{{ Storage::url(Auth::user()->profile_picture) }}"
-                                         alt="{{ Auth::user()->name }}'s profile picture">
+                                         src="{{ $authUser->profile_picture }}"
+                                         alt="{{ $authUser->name }}'s profile picture">
                                 @else
                                     <div class="h-8 w-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
                                         <span class="text-white text-sm font-medium">
-                                            {{ substr(Auth::user()->name, 0, 1) }}
+                                            {{ substr($authUser?->name ?? '?', 0, 1) }}
                                         </span>
                                     </div>
                                 @endif
                                 <div class="hidden md:block text-left">
-                                    <div class="text-sm font-medium text-gray-900">{{ Auth::user()->name }}</div>
-                                    <div class="text-xs text-gray-500 capitalize">{{ Auth::user()->user_type }}</div>
+                                    <div class="text-sm font-medium text-gray-900">{{ $authUser?->name }}</div>
+                                    <div class="text-xs text-gray-500 capitalize">{{ $authUser?->user_type }}</div>
                                 </div>
                                 <i class="fas fa-chevron-down text-gray-400 text-xs" aria-hidden="true"></i>
                             </div>
@@ -91,20 +94,20 @@
                              aria-labelledby="user-menu-button">
                             <div class="p-4 border-b border-gray-200">
                                 <div class="flex items-center space-x-3">
-                                    @if(Auth::user()->profile_picture)
+                                    @if($authUser?->profile_picture)
                                         <img class="h-10 w-10 rounded-full object-cover"
-                                             src="{{ Storage::url(Auth::user()->profile_picture) }}"
-                                             alt="{{ Auth::user()->name }}'s profile picture">
+                                             src="{{ $authUser->profile_picture }}"
+                                             alt="{{ $authUser->name }}'s profile picture">
                                     @else
                                         <div class="h-10 w-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
                                             <span class="text-white font-medium">
-                                                {{ substr(Auth::user()->name, 0, 1) }}
+                                                {{ substr($authUser?->name ?? '?', 0, 1) }}
                                             </span>
                                         </div>
                                     @endif
                                     <div>
-                                        <div class="text-sm font-medium text-gray-900">{{ Auth::user()->name }}</div>
-                                        <div class="text-xs text-gray-500">{{ Auth::user()->email }}</div>
+                                        <div class="text-sm font-medium text-gray-900">{{ $authUser?->name }}</div>
+                                        <div class="text-xs text-gray-500">{{ $authUser?->email }}</div>
                                     </div>
                                 </div>
                             </div>

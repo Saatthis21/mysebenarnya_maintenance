@@ -58,8 +58,8 @@ Route::post('/register', [UserController::class, 'register']);
 
 // Email Verification Routes
 Route::get('/email/verify', [UserController::class, 'emailVerificationNotice'])->name('verification.notice');
-Route::get('/email/verify/{id}/{hash}', [UserController::class, 'verifyEmail'])->middleware(['auth:public', 'signed'])->name('verification.verify');
-Route::post('/email/verification-notification', [UserController::class, 'resendVerificationEmail'])->middleware(['auth:public', 'throttle:6,1'])->name('verification.send');
+Route::get('/email/verify/{id}/{hash}', [UserController::class, 'verifyEmail'])->middleware(['signed'])->name('verification.verify');
+Route::post('/email/verification-notification', [UserController::class, 'resendVerificationEmail'])->middleware(['auth:public,mcmc,agency', 'throttle:6,1'])->name('verification.send');
 
 // Public User Protected Routes
 Route::middleware(['auth:public'])->prefix('public')->name('public.')->group(function () {
