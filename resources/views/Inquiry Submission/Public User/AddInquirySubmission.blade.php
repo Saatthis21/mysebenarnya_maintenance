@@ -90,10 +90,32 @@
                         // For browsers that do not show placeholder for file input, show a label overlay
                         document.addEventListener('DOMContentLoaded', function() {
                             var fileInput = document.getElementById('attachment');
-                            if (fileInput) {
+                            var form = fileInput ? fileInput.closest('form') : null;
+                            var maxFileSize = 5 * 1024 * 1024; 
+                            if (fileInput && form) {
                                 fileInput.addEventListener('change', function() {
                                     fileInput.classList.remove('text-gray-400');
+
+                                    if (this.files.length > 0) {
+                                        var fileSize = this.files[0].size;
+                                        if (fileSize >maxFileSize) {
+                                            alert('Error: The selected file exceeds the 5MB limit.Please choose a smaller file.');
+                                            this.value = '';
+                                            fileInput.classList.add('text-gray-400');
+                                        }
+                                    }
                                 });
+
+                                form.addEventListener('submit', function(event) {
+                                    if (fileInput.files.length > 0) {
+                                        var fileSize = fileInput.files[0].size;
+                                        if (fileSize > maxFileSize) {
+                                            event.preventDefault();
+                                            alert('Cannot submit: Please remove or replace the file exceeding the 5MB limit.');
+                                        }
+                                    }
+                                });
+                                
                                 if (!fileInput.value) {
                                     fileInput.classList.add('text-gray-400');
                                 }
