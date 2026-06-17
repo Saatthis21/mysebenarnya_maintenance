@@ -36,15 +36,19 @@ class AgencyCredentialsNotification extends Notification
      */
     public function toMail(object $notifiable): MailMessage
     {
+        // Agency model uses agency_Name / agency_Email — fall back to generic name/email if notifiable differs
+        $agencyName  = $notifiable->agency_Name ?? $notifiable->name ?? 'Agency';
+        $agencyEmail = $notifiable->agency_Email ?? $notifiable->email ?? '';
+
         return (new MailMessage)
                     ->subject('Agency Account Created - MySebenarnya Portal')
-                    ->greeting('Hello ' . $notifiable->name . ',')
+                    ->greeting('Hello ' . $agencyName . ',')
                     ->line('Your agency account has been created for the MySebenarnya Portal.')
                     ->line('Your login credentials are:')
-                    ->line('**Email:** ' . $notifiable->email)
+                    ->line('**Email:** ' . $agencyEmail)
                     ->line('**Temporary Password:** ' . $this->temporaryPassword)
                     ->line('For security reasons, you will be required to change your password upon first login.')
-                    ->action('Login to Portal', url('/login/agency'))
+                    ->action('Login to Portal', url('/login?type=agency'))
                     ->line('If you have any questions, please contact our support team.')
                     ->line('Thank you for using MySebenarnya Portal!');
     }

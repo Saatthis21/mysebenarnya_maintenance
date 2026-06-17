@@ -201,7 +201,10 @@
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
                             @forelse($publicUsers as $user)
-                                <tr class="hover:bg-gray-50 transition-colors duration-200">
+                                <tr class="hover:bg-gray-50 transition-colors duration-200"
+                                    data-verified="{{ $user->hasVerifiedEmail() ? 'yes' : 'no' }}"
+                                    data-name="{{ strtolower($user->name) }}"
+                                    data-email="{{ strtolower($user->email) }}">
                                     <td class="table-cell">
                                         <input type="checkbox" class="form-checkbox user-checkbox"
                                             value="{{ $user->id }}" aria-label="Select user {{ $user->name }}">
@@ -211,7 +214,7 @@
                                             <div class="flex-shrink-0 h-12 w-12">
                                                 @if ($user->profile_picture)
                                                     <img class="h-12 w-12 rounded-full object-cover border-2 border-gray-200"
-                                                        src="{{ Storage::url($user->profile_picture) }}"
+                                                        src="{{ $user->profile_picture }}"
                                                         alt="{{ $user->name }}'s profile picture">
                                                 @else
                                                     <div
@@ -359,7 +362,10 @@
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
                             @forelse($agencies as $agency)
-                                <tr class="hover:bg-gray-50 transition-colors duration-200">
+                                <tr class="hover:bg-gray-50 transition-colors duration-200"
+                                    data-first-login="{{ $agency->agency_First_Time_Login ? 'yes' : 'no' }}"
+                                    data-name="{{ strtolower($agency->agency_Name) }}"
+                                    data-email="{{ strtolower($agency->agency_Email) }}">
                                     <td class="table-cell">
                                         <input type="checkbox" class="form-checkbox agency-checkbox"
                                             value="{{ $agency->agency_ID }}"
@@ -370,7 +376,7 @@
                                             <div class="flex-shrink-0 h-12 w-12">
                                                 @if ($agency->profile_picture)
                                                     <img class="h-12 w-12 rounded-full object-cover border-2 border-gray-200"
-                                                        src="{{ Storage::url($agency->profile_picture) }}"
+                                                        src="{{ $agency->profile_picture }}"
                                                         alt="{{ $agency->agency_Name }}'s profile picture">
                                                 @else
                                                     <div
@@ -582,53 +588,60 @@
             setupCheckboxes();
         });
 
-        // Search functionality
-        function setupSearch() {
-            const globalSearch = document.getElementById('global-search');
-            const publicSearch = document.getElementById('public-search');
-            const agencySearch = document.getElementById('agency-search');
+        // ── Filter helpers ────────────────────────────────────────────────────
 
-            if (globalSearch) {
-                globalSearch.addEventListener('input', function() {
-                    const searchTerm = this.value.toLowerCase();
-                    filterAllTables(searchTerm);
-                });
-            }
+        function applyPublicFilter() {
+            const search     = (document.getElementById('public-search')?.value || '').toLowerCase();
+            const filterVal  = document.getElementById('public-filter')?.value || '';
+            const globalSearch = (document.getElementById('global-search')?.value || '').toLowerCase();
+            const term = search || globalSearch;
 
-            if (publicSearch) {
-                publicSearch.addEventListener('input', function() {
-                    const searchTerm = this.value.toLowerCase();
-                    filterTable('public-users-table', searchTerm);
-                });
-            }
+            document.querySelectorAll('#public-users-table tbody tr').forEach(row => {
+                const matchesSearch = !term ||
+                    row.dataset.name?.includes(term) ||
+                    row.dataset.email?.includes(term) ||
+                    row.textContent.toLowerCase().includes(term);
 
-            if (agencySearch) {
-                agencySearch.addEventListener('input', function() {
-                    const searchTerm = this.value.toLowerCase();
-                    filterTable('agencies-table', searchTerm);
-                });
-            }
-        }
+                let matchesFilter = true;
+                if (filterVal === 'verified')   matchesFilter = row.dataset.verified === 'yes';
+                if (filterVal === 'unverified') matchesFilter = row.dataset.verified === 'no';
 
-        function filterTable(tableId, searchTerm) {
-            const table = document.getElementById(tableId);
-            if (!table) return;
-
-            const rows = table.querySelectorAll('tbody tr');
-
-            rows.forEach(row => {
-                const text = row.textContent.toLowerCase();
-                if (text.includes(searchTerm)) {
-                    row.style.display = '';
-                } else {
-                    row.style.display = 'none';
-                }
+                row.style.display = (matchesSearch && matchesFilter) ? '' : 'none';
             });
         }
 
-        function filterAllTables(searchTerm) {
-            filterTable('public-users-table', searchTerm);
-            filterTable('agencies-table', searchTerm);
+        function applyAgencyFilter() {
+            const search     = (document.getElementById('agency-search')?.value || '').toLowerCase();
+            const filterVal  = document.getElementById('agency-filter')?.value || '';
+            const globalSearch = (document.getElementById('global-search')?.value || '').toLowerCase();
+            const term = search || globalSearch;
+
+            document.querySelectorAll('#agencies-table tbody tr').forEach(row => {
+                const matchesSearch = !term ||
+                    row.dataset.name?.includes(term) ||
+                    row.dataset.email?.includes(term) ||
+                    row.textContent.toLowerCase().includes(term);
+
+                let matchesFilter = true;
+                if (filterVal === 'active')      matchesFilter = row.dataset.firstLogin === 'no';
+                if (filterVal === 'needs-reset') matchesFilter = row.dataset.firstLogin === 'yes';
+
+                row.style.display = (matchesSearch && matchesFilter) ? '' : 'none';
+            });
+        }
+
+        // Search functionality
+        function setupSearch() {
+            document.getElementById('global-search')?.addEventListener('input', function() {
+                applyPublicFilter();
+                applyAgencyFilter();
+            });
+
+            document.getElementById('public-search')?.addEventListener('input', applyPublicFilter);
+            document.getElementById('public-filter')?.addEventListener('change', applyPublicFilter);
+
+            document.getElementById('agency-search')?.addEventListener('input', applyAgencyFilter);
+            document.getElementById('agency-filter')?.addEventListener('change', applyAgencyFilter);
         }
 
         // Checkbox functionality
@@ -763,10 +776,23 @@
                 'Are you sure you want to send a verification email to this user?',
                 'Send Email',
                 () => {
-                    // Implement actual email sending logic
-                    console.log('Sending verification email to user:', userId);
                     closeModal('confirmation-modal');
-                    showToast('Verification email sent successfully!', 'success');
+                    fetch(`/mcmc/users/${userId}/send-verification`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                            'Accept': 'application/json',
+                        },
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            showToast(data.success, 'success');
+                        } else {
+                            showToast(data.error ?? 'Failed to send verification email.', 'error');
+                        }
+                    })
+                    .catch(() => showToast('An error occurred. Please try again.', 'error'));
                 }
             );
         }
@@ -774,13 +800,26 @@
         function resetAgencyPassword(agencyId) {
             showConfirmationModal(
                 'Reset Password',
-                'Are you sure you want to reset the password for this agency? They will receive an email with reset instructions.',
+                'Are you sure you want to reset the password for this agency? They will receive an email with new credentials.',
                 'Reset Password',
                 () => {
-                    // Implement actual password reset logic
-                    console.log('Resetting password for agency:', agencyId);
                     closeModal('confirmation-modal');
-                    showToast('Password reset email sent successfully!', 'success');
+                    fetch(`/mcmc/users/${agencyId}/reset-password`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                            'Accept': 'application/json',
+                        },
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            showToast(data.success, 'success');
+                        } else {
+                            showToast(data.error ?? 'Failed to reset password.', 'error');
+                        }
+                    })
+                    .catch(() => showToast('An error occurred. Please try again.', 'error'));
                 }
             );
         }

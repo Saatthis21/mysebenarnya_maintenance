@@ -7,15 +7,14 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
-use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use App\Models\UserRecord;
 use App\Models\Agency;
+use App\Models\PublicUser;
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RegisterRequest;
 use App\Http\Requests\ProfileUpdateRequest;
@@ -47,13 +46,26 @@ class UserController extends Controller
             'email_verified_at' => null,
         ];
 
-        // Handle profile picture upload
+        // Handle profile picture — store as base64 data URI directly in DB
         if ($request->hasFile('profile_picture')) {
-            $path = $request->file('profile_picture')->store('profile_pictures', 'public');
-            $userData['profile_picture'] = $path;
+            $file = $request->file('profile_picture');
+            $userData['profile_picture'] = 'data:' . $file->getMimeType()
+                . ';base64,' . base64_encode(file_get_contents($file->getRealPath()));
         }
 
         $user = UserRecord::create($userData);
+
+        // Create matching public_users profile row (shared PK = users.id)
+        PublicUser::create([
+            'id'                => $user->id,
+            'user_Name'         => $request->name,
+            'user_Email'        => $request->email,
+            'user_Phone_Number' => $request->contact_number ?? '',
+            'user_Password'     => $userData['password'],
+            'user_Status'       => 'active',
+            'user_Created_At'   => now(),
+            'user_Updated_At'   => now(),
+        ]);
 
         // Send email verification
         $user->sendEmailVerificationNotification();
@@ -219,12 +231,26 @@ class UserController extends Controller
      */
     public function registerPublicUser(RegisterRequest $request)
     {
+        $hash = Hash::make($request->password);
+
         $user = UserRecord::create([
-            'name' => $request->name,
-            'email' => $request->email,
+            'name'           => $request->name,
+            'email'          => $request->email,
             'contact_number' => $request->contact_number,
-            'password' => Hash::make($request->password),
-            'user_type' => 'public',
+            'password'       => $hash,
+            'user_type'      => 'public',
+        ]);
+
+        // Create matching public_users profile row (shared PK = users.id)
+        PublicUser::create([
+            'id'                => $user->id,
+            'user_Name'         => $request->name,
+            'user_Email'        => $request->email,
+            'user_Phone_Number' => $request->contact_number ?? '',
+            'user_Password'     => $hash,
+            'user_Status'       => 'active',
+            'user_Created_At'   => now(),
+            'user_Updated_At'   => now(),
         ]);
 
         // Send email verification
@@ -262,30 +288,46 @@ class UserController extends Controller
         $user = Auth::guard('public')->user();
 
         $updateData = [
-            'name' => $request->name,
-            'email' => $request->email,
+            'name'           => $request->name,
             'contact_number' => $request->contact_number,
         ];
 
-        // Handle profile picture upload
+        // Reset verification when email changes
+        if ($request->email !== $user->email) {
+            $updateData['email']             = $request->email;
+            $updateData['email_verified_at'] = null;
+        }
+
+        // Handle profile picture — store as base64 data URI directly in DB
         if ($request->hasFile('profile_picture')) {
-            // Delete old profile picture if exists
-            if ($user->profile_picture) {
-                Storage::disk('public')->delete($user->profile_picture);
-            }
-            $path = $request->file('profile_picture')->store('profile_pictures', 'public');
-            $updateData['profile_picture'] = $path;
+            $file = $request->file('profile_picture');
+            $updateData['profile_picture'] = 'data:' . $file->getMimeType()
+                . ';base64,' . base64_encode(file_get_contents($file->getRealPath()));
         }
 
         // Handle password change
+        $passwordChanged = false;
         if ($request->filled('current_password')) {
             if (!Hash::check($request->current_password, $user->password)) {
                 return back()->withErrors(['current_password' => 'Current password is incorrect.']);
             }
-            $updateData['password'] = Hash::make($request->password);
+            if ($request->filled('password')) {
+                $updateData['password'] = $request->password;
+                $passwordChanged = true;
+            }
         }
 
         $user->update($updateData);
+
+        // Re-authenticate to prevent session invalidation after password change
+        if ($passwordChanged) {
+            Auth::guard('public')->login($user);
+        }
+
+        // Send new verification email if email was changed
+        if (isset($updateData['email_verified_at'])) {
+            $user->sendEmailVerificationNotification();
+        }
 
         return redirect()->route('public.profile')->with('success', 'Profile updated successfully!');
     }
@@ -380,31 +422,42 @@ class UserController extends Controller
         ]);
 
         $updateData = [
-            'name' => $request->name,
-            'email' => $request->email,
+            'name'           => $request->name,
             'contact_number' => $request->contact_number,
         ];
 
-        // Handle profile picture upload
+        // Reset verification when email changes
+        if ($request->email !== $user->email) {
+            $updateData['email']             = $request->email;
+            $updateData['email_verified_at'] = null;
+        }
+
+        // Handle profile picture — store as base64 data URI directly in DB
         if ($request->hasFile('profile_picture')) {
-            // Delete old profile picture if exists
-            if ($user->profile_picture) {
-                Storage::disk('public')->delete($user->profile_picture);
-            }
-            $path = $request->file('profile_picture')->store('profile_pictures', 'public');
-            $updateData['profile_picture'] = $path;
+            $file = $request->file('profile_picture');
+            $updateData['profile_picture'] = 'data:' . $file->getMimeType()
+                . ';base64,' . base64_encode(file_get_contents($file->getRealPath()));
         }
 
         // Handle password change
+        $passwordChanged = false;
         if ($request->filled('current_password')) {
             if (!Hash::check($request->current_password, $user->password)) {
                 return back()->withErrors(['current_password' => 'Current password is incorrect.']);
             }
-            $updateData['password'] = Hash::make($request->password);
-            $updateData['force_password_reset'] = false; // Remove force reset flag
+            if ($request->filled('password')) {
+                $updateData['password']              = $request->password;
+                $updateData['force_password_reset']  = false;
+                $passwordChanged = true;
+            }
         }
 
         $user->update($updateData);
+
+        // Re-authenticate to prevent session invalidation after password change
+        if ($passwordChanged) {
+            Auth::guard('agency')->login($user);
+        }
 
         return redirect()->route('agency.profile')->with('success', 'Profile updated successfully!');
     }
@@ -533,39 +586,55 @@ class UserController extends Controller
         $user = Auth::guard('mcmc')->user();
 
         $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
-            'contact_number' => 'required|string|max:20',
+            'name'             => 'required|string|max:255',
+            'email'            => 'required|string|email|max:255|unique:users,email,' . $user->id,
+            'contact_number'   => 'required|string|max:20',
             'current_password' => 'nullable|string',
-            'password' => ['nullable', 'confirmed', Rules\Password::defaults()],
-            'profile_picture' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'password'         => ['nullable', 'confirmed', Rules\Password::defaults()],
+            'profile_picture'  => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
         $updateData = [
-            'name' => $request->name,
-            'email' => $request->email,
+            'name'           => $request->name,
             'contact_number' => $request->contact_number,
         ];
 
-        // Handle profile picture upload
+        // Reset verification when email changes
+        if ($request->email !== $user->email) {
+            $updateData['email']             = $request->email;
+            $updateData['email_verified_at'] = null;
+        }
+
+        // Handle profile picture — store as base64 data URI directly in DB
         if ($request->hasFile('profile_picture')) {
-            // Delete old profile picture if exists
-            if ($user->profile_picture) {
-                Storage::disk('public')->delete($user->profile_picture);
-            }
-            $path = $request->file('profile_picture')->store('profile_pictures', 'public');
-            $updateData['profile_picture'] = $path;
+            $file = $request->file('profile_picture');
+            $updateData['profile_picture'] = 'data:' . $file->getMimeType()
+                . ';base64,' . base64_encode(file_get_contents($file->getRealPath()));
         }
 
         // Handle password change
+        $passwordChanged = false;
         if ($request->filled('current_password')) {
             if (!Hash::check($request->current_password, $user->password)) {
                 return back()->withErrors(['current_password' => 'Current password is incorrect.']);
             }
-            $updateData['password'] = Hash::make($request->password);
+            if ($request->filled('password')) {
+                $updateData['password'] = $request->password;
+                $passwordChanged = true;
+            }
         }
 
         $user->update($updateData);
+
+        // Re-authenticate to prevent session invalidation after password change
+        if ($passwordChanged) {
+            Auth::guard('mcmc')->login($user);
+        }
+
+        // Send new verification email if email was changed
+        if (isset($updateData['email'])) {
+            $user->sendEmailVerificationNotification();
+        }
 
         return redirect()->route('mcmc.profile')->with('success', 'Profile updated successfully!');
     }
@@ -1169,30 +1238,33 @@ class UserController extends Controller
         $hashedPassword = Hash::make($temporaryPassword);
 
         DB::transaction(function () use ($request, $temporaryPassword, $hashedPassword, &$agency, &$user) {
-            // Create agency record in agencies table
-            $agency = Agency::create([
-                'agency_Name' => $request->name,
-                'agency_Type' => $request->type,
-                'agency_Email' => $request->email,
-                'agency_Phone' => $request->phone,
-                'agency_Password' => $hashedPassword,
-                'agency_First_Time_Login' => true,
-                'agency_Created_At' => now(),
-                'agency_Updated_At' => now(),
+            // Create UserRecord first so we have the users.id to share
+            $user = UserRecord::create([
+                'name'              => $request->name,
+                'email'             => $request->email,
+                'contact_number'    => $request->phone,
+                'user_type'         => 'agency',
+                'password'          => $hashedPassword,
+                'email_verified_at' => now(),
+                'created_at'        => now(),
+                'updated_at'        => now(),
             ]);
 
-            // Also create corresponding user record in users table for unified authentication
-            $user = UserRecord::create([
-                'name' => $request->name,
-                'email' => $request->email,
-                'contact_number' => $request->phone,
-                'user_type' => 'agency',
-                'password' => $hashedPassword,
-                'agency_ID' => $agency->agency_ID, // Link to agencies table
-                'email_verified_at' => now(), // Auto-verify agency emails
-                'created_at' => now(),
-                'updated_at' => now(),
+            // Create agency using the same id (shared PK pattern)
+            $agency = Agency::create([
+                'id'                     => $user->id,
+                'agency_Name'            => $request->name,
+                'agency_Type'            => $request->type,
+                'agency_Email'           => $request->email,
+                'agency_Phone'           => $request->phone,
+                'agency_Password'        => $hashedPassword,
+                'agency_First_Time_Login'=> true,
+                'agency_Created_At'      => now(),
+                'agency_Updated_At'      => now(),
             ]);
+
+            // Link the UserRecord back to this agency for the agency_ID FK in users table
+            $user->update(['agency_ID' => $user->id]);
         });
 
         // Send email with temporary credentials
@@ -1220,8 +1292,8 @@ class UserController extends Controller
             'format' => 'required|in:pdf,excel',
         ]);
 
-        $reportType = $request->report_type;
-        $format = $request->format;
+        $reportType = $request->input('report_type');
+        $format     = $request->input('format');
 
         $data = [];
 
@@ -1266,28 +1338,63 @@ class UserController extends Controller
 
     /**
      * Handle email verification
+     *
+     * We handle this manually instead of using EmailVerificationRequest because
+     * that class resolves Auth::user() via the default 'web' guard, which is
+     * null for users authenticated via named guards (public/mcmc/agency).
+     * Removing auth middleware from this route also lets users verify from any
+     * browser/device without being pre-logged-in.
      */
-    public function verifyEmail(EmailVerificationRequest $request)
+    public function verifyEmail(Request $request, $id, $hash)
     {
-        $request->fulfill();
-        return redirect()->route('public.dashboard')->with('success', 'Email verified successfully!');
+        if (!$request->hasValidSignature()) {
+            abort(403, 'Invalid or expired verification link. Please request a new one.');
+        }
+
+        $user = UserRecord::find($id);
+
+        if (!$user) {
+            abort(404);
+        }
+
+        if (!hash_equals($hash, sha1($user->getEmailForVerification()))) {
+            abort(403, 'Invalid verification link.');
+        }
+
+        if (!$user->hasVerifiedEmail()) {
+            $user->markEmailAsVerified();
+        }
+
+        $redirectRoute = match ($user->user_type) {
+            'mcmc'   => 'mcmc.dashboard',
+            'agency' => 'agency.dashboard',
+            default  => 'public.dashboard',
+        };
+
+        return redirect()->route($redirectRoute)->with('success', 'Email verified successfully!');
     }
 
     /**
-     * Resend verification email
+     * Resend verification email — works for public, mcmc, and agency guards.
      */
     public function resendVerificationEmail(Request $request)
     {
-        /** @var UserRecord $user */
-        $user = Auth::guard('public')->user();
+        /** @var UserRecord|null $user */
+        $user = Auth::guard('public')->user()
+             ?? Auth::guard('mcmc')->user()
+             ?? Auth::guard('agency')->user();
 
-        if ($user && $user->hasVerifiedEmail()) {
-            return redirect()->route('public.dashboard');
+        if (!$user) {
+            return redirect()->route('login');
+        }
+
+        if ($user->hasVerifiedEmail()) {
+            return redirect()->route($user->getLoginRedirectRoute());
         }
 
         $user->sendEmailVerificationNotification();
 
-        return back()->with('message', 'Verification link sent!');
+        return back()->with('message', 'Verification link sent! Please check your email.');
     }
 
     // ==================== GENERAL SETTINGS METHODS ====================

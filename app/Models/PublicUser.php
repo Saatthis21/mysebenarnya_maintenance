@@ -10,18 +10,20 @@ class PublicUser extends Authenticatable
 {
     use HasFactory, Notifiable;
 
-    protected $table = 'public_users';
-    protected $primaryKey = 'user_ID';
-    public $timestamps = false;
+    protected $table      = 'public_users';
+    protected $primaryKey = 'id';
+    public $incrementing  = false;
+    public $timestamps    = false;
 
     protected $fillable = [
+        'id',
         'user_Name',
         'user_Email',
         'user_Phone_Number',
         'user_Password',
         'user_Status',
         'user_Created_At',
-        'user_Updated_At'
+        'user_Updated_At',
     ];
 
     protected $hidden = [
@@ -33,41 +35,27 @@ class PublicUser extends Authenticatable
         'user_Updated_At' => 'datetime',
     ];
 
-    /**
-     * Get the password attribute for authentication
-     */
     public function getAuthPassword()
     {
         return $this->user_Password;
     }
 
-    /**
-     * Get the unique identifier for the user
-     */
-    public function getAuthIdentifierName()
+    /** Extension of users: id IS the FK to users.id */
+    public function userRecord()
     {
-        return 'user_ID';
+        return $this->belongsTo(UserRecord::class, 'id', 'id');
     }
 
-    /**
-     * Get the inquiries submitted by this user
-     */
     public function inquiries()
     {
-        return $this->hasMany(InquirySubmissionRecord::class, 'user_ID', 'user_ID');
+        return $this->hasMany(InquirySubmissionRecord::class, 'user_ID', 'id');
     }
 
-    /**
-     * Get the name attribute (for compatibility)
-     */
     public function getNameAttribute()
     {
         return $this->user_Name;
     }
 
-    /**
-     * Get the email attribute (for compatibility)
-     */
     public function getEmailAttribute()
     {
         return $this->user_Email;

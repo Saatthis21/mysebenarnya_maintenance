@@ -210,54 +210,20 @@
                         </div>
                     </div>
 
-                    <!-- Security Settings -->
-                    <div class="bg-gray-50 rounded-lg p-6">
-                        <h3 class="text-lg font-medium text-gray-900 mb-4">
-                            <i class="fas fa-shield-alt mr-2 text-green-600" aria-hidden="true"></i>
-                            Security Settings
-                        </h3>
-
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <!-- Password -->
-                            <div>
-                                <label for="password" class="form-label">
-                                    <i class="fas fa-lock mr-2 text-gray-400" aria-hidden="true"></i>
-                                    Password
-                                </label>
-                                <input type="password"
-                                       id="password"
-                                       name="password"
-                                       class="form-input @error('password') error @enderror"
-                                       placeholder="Enter a secure password"
-                                       required
-                                       aria-describedby="@error('password') password-error @enderror password-help">
-                                @error('password')
-                                    <div id="password-error" class="form-error" role="alert">
-                                        <i class="fas fa-exclamation-circle mr-1" aria-hidden="true"></i>
-                                        {{ $message }}
-                                    </div>
-                                @enderror
-                                <div id="password-help" class="form-help">
-                                    Password must be at least 8 characters with letters, numbers, and symbols.
-                                </div>
+                    <!-- Auto-generated password notice -->
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-6">
+                        <div class="flex items-start space-x-3">
+                            <div class="flex-shrink-0 mt-0.5">
+                                <i class="fas fa-key text-green-600 text-xl" aria-hidden="true"></i>
                             </div>
-
-                            <!-- Confirm Password -->
                             <div>
-                                <label for="password_confirmation" class="form-label">
-                                    <i class="fas fa-lock mr-2 text-gray-400" aria-hidden="true"></i>
-                                    Confirm Password
-                                </label>
-                                <input type="password"
-                                       id="password_confirmation"
-                                       name="password_confirmation"
-                                       class="form-input"
-                                       placeholder="Confirm the password"
-                                       required
-                                       aria-describedby="password-confirm-help">
-                                <div id="password-confirm-help" class="form-help">
-                                    Re-enter the password to confirm.
-                                </div>
+                                <h3 class="text-lg font-medium text-green-800 mb-1">
+                                    Password Auto-Generated
+                                </h3>
+                                <p class="text-sm text-green-700">
+                                    A secure temporary password will be automatically generated and sent to the agency's
+                                    email address upon registration. The agency must change this password on their first login.
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -410,13 +376,9 @@
     document.addEventListener('DOMContentLoaded', function() {
         const form = document.querySelector('form');
         const submitButton = document.getElementById('submit-button');
-        const passwordField = document.getElementById('password');
-        const confirmPasswordField = document.getElementById('password_confirmation');
-
         // Form submission handling
         if (form && submitButton) {
-            form.addEventListener('submit', function(e) {
-                // Show loading state
+            form.addEventListener('submit', function() {
                 submitButton.disabled = true;
                 submitButton.innerHTML = `
                     <div class="flex items-center">
@@ -424,41 +386,6 @@
                         <span>Registering Agency...</span>
                     </div>
                 `;
-            });
-        }
-
-        // Password confirmation validation
-        if (confirmPasswordField) {
-            confirmPasswordField.addEventListener('input', function() {
-                const password = passwordField.value;
-                const confirmPassword = this.value;
-
-                if (confirmPassword && password !== confirmPassword) {
-                    this.classList.add('error');
-
-                    // Remove existing error message
-                    const existingError = document.getElementById('password-confirm-error');
-                    if (existingError) {
-                        existingError.remove();
-                    }
-
-                    // Add error message
-                    const errorDiv = document.createElement('div');
-                    errorDiv.id = 'password-confirm-error';
-                    errorDiv.className = 'form-error';
-                    errorDiv.setAttribute('role', 'alert');
-                    errorDiv.innerHTML = `
-                        <i class="fas fa-exclamation-circle mr-1" aria-hidden="true"></i>
-                        Passwords do not match
-                    `;
-                    this.parentNode.insertBefore(errorDiv, document.getElementById('password-confirm-help'));
-                } else {
-                    this.classList.remove('error');
-                    const existingError = document.getElementById('password-confirm-error');
-                    if (existingError) {
-                        existingError.remove();
-                    }
-                }
             });
         }
 
